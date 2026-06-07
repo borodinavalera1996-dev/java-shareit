@@ -44,6 +44,7 @@ class ItemServiceTest {
     @BeforeEach
     void setUp() {
         owner = new User();
+
         owner.setId(1L);
         owner.setName("Ivan");
         owner.setEmail("ivan@mail.com");
