@@ -18,13 +18,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User createUser(User user) {
-        boolean emailExists = users.values().stream()
-                .anyMatch(u -> u.getEmail().equalsIgnoreCase(user.getEmail()));
-
-        if (emailExists) {
-            log.warn("Попытка создания пользователя с уже существующим email: {}", user.getEmail());
-            throw new ConflictException("Пользователь с email " + user.getEmail() + " уже существует");
-        }
+        checkEmail(user);
         long id = getNextId();
         user.setId(id);
         users.put(id, user);
@@ -45,13 +39,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User updateUser(User userNew) {
-        boolean emailExists = users.values().stream()
-                .anyMatch(u -> u.getEmail().equalsIgnoreCase(userNew.getEmail()) && !u.getId().equals(userNew.getId()));
-
-        if (emailExists) {
-            log.warn("Попытка обновить email на уже существующий: {}", userNew.getEmail());
-            throw new ConflictException("Email " + userNew.getEmail() + " уже занят другим пользователем");
-        }
+        checkEmail(userNew);
         users.put(userNew.getId(), userNew);
         return userNew;
     }
@@ -59,6 +47,16 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public void deleteUser(Long id) throws NotFoundException {
         users.remove(id);
+    }
+
+    private void checkEmail(User userNew) {
+        boolean emailExists = users.values().stream()
+                .anyMatch(u -> u.getEmail().equalsIgnoreCase(userNew.getEmail()) && !u.getId().equals(userNew.getId()));
+
+        if (emailExists) {
+            log.warn("Попытка обновить или создать пользователя с email, который уже занят другим пользователем: {}", userNew.getEmail());
+            throw new ConflictException("Email " + userNew.getEmail() + " уже занят другим пользователем");
+        }
     }
 
     private long getNextId() {

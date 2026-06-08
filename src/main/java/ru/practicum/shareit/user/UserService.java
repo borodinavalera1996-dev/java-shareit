@@ -36,16 +36,19 @@ public class UserService {
 
     public UserDto getUserById(Long id) {
         log.info("Получение пользователя по id: {}", id);
-        User user = userRepository.getUserById(id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
+        User user = getUser(id);
         return userMapper.toUserDto(user);
+    }
+
+    private User getUser(Long id) {
+        return userRepository.getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
     public UserDto updateUser(Long id, @Valid UpdateUserDto userDto) {
         log.info("Обновление пользователя с id: {}, данные: {}", id, userDto);
 
-        User existingUser = userRepository.getUserById(id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
+        User existingUser = getUser(id);
 
         if (userDto.getName() != null && !userDto.getName().isBlank()) {
             existingUser.setName(userDto.getName());
@@ -59,9 +62,7 @@ public class UserService {
 
     public void deleteUser(Long id) {
         log.info("Удаление пользователя по id: {}", id);
-        if (userRepository.getUserById(id).isEmpty()) {
-            throw new NotFoundException("Пользователь с id=" + id + " не найден");
-        }
+        getUser(id);
         userRepository.deleteUser(id);
     }
 }

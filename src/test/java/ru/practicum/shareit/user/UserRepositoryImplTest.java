@@ -44,7 +44,7 @@ class UserRepositoryImplTest {
         ConflictException exception = assertThrows(ConflictException.class, () ->
                 userRepository.createUser(duplicateUser)
         );
-        assertTrue(exception.getMessage().contains("уже существует"));
+        assertTrue(exception.getMessage().contains("уже занят другим пользователем"));
     }
 
     @Test

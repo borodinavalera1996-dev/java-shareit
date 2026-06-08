@@ -14,7 +14,6 @@ import ru.practicum.shareit.user.UserRepository;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -27,10 +26,9 @@ public class ItemService {
 
     public ItemDto createItem(@Valid ItemDto itemDto, Long userId) {
         log.info("Создание вещи: {}", itemDto);
-        Optional<User> userById = userRepository.getUserById(userId);
-        userById.orElseThrow(NotFoundException::new);
+        User userById = getUser(userId);
         Item item = itemMapper.toItem(itemDto);
-        item.setOwner(userById.get());
+        item.setOwner(userById);
         item = itemRepository.createItem(item);
         return itemMapper.toItemDto(item);
     }
@@ -38,11 +36,8 @@ public class ItemService {
     public ItemDto updateItem(@Valid UpdateItemDto itemDto, Long id, Long userId) {
         log.info("Обновление вещи с id {}: {}", id, itemDto);
 
-        userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
-
-        Item targetItem = itemRepository.getItemById(id)
-                .orElseThrow(() -> new NotFoundException("Вещь с id " + id + " не найдена"));
+        getUser(userId);
+        Item targetItem = getItem(id);
 
         if (!targetItem.getOwner().getId().equals(userId)) {
             log.warn("Пользователь {} не является владельцем вещи {}", userId, id);
@@ -63,10 +58,19 @@ public class ItemService {
         return itemMapper.toItemDto(updatedItem);
     }
 
+    private Item getItem(Long id) {
+        return itemRepository.getItemById(id)
+                .orElseThrow(() -> new NotFoundException("Вещь с id " + id + " не найдена"));
+    }
+
+    private User getUser(Long userId) {
+        return userRepository.getUserById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
+    }
+
     public ItemDto getItemById(Long id) {
         log.info("Получение вещи по id: {}", id);
-        Item item = itemRepository.getItemById(id)
-                .orElseThrow(() -> new NotFoundException("Вещь с id " + id + " не найдена"));
+        Item item = getItem(id);
         return itemMapper.toItemDto(item);
     }
 
@@ -82,6 +86,7 @@ public class ItemService {
 
     public List<ItemDto> getAllItemByUser(Long userId) {
         log.info("Получение всех вещей пользователя с id: {}", userId);
+        getUser(userId);
         return itemRepository.getAllItemByUser(userId).stream()
                 .map(itemMapper::toItemDto)
                 .collect(Collectors.toList());

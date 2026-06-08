@@ -188,6 +188,7 @@ class ItemServiceTest {
     @Test
     void getAllItemByUser_whenItemsExist_thenReturnsList() {
         Mockito.when(itemRepository.getAllItemByUser(1L)).thenReturn(List.of(item));
+        Mockito.when(userRepository.getUserById(1L)).thenReturn(Optional.of(new User()));
         Mockito.when(itemMapper.toItemDto(item)).thenReturn(itemDto);
 
         List<ItemDto> result = itemService.getAllItemByUser(1L);
