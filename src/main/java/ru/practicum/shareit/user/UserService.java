@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UpdateUserDto;
 import ru.practicum.shareit.user.dto.UserDto;
@@ -15,21 +16,23 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
+    @Transactional
     public UserDto createUser(@Valid UserDto userDto) {
         log.info("Создание пользователя: {}", userDto);
         User user = userMapper.toUser(userDto);
-        user = userRepository.createUser(user);
+        user = userRepository.save(user);
         return userMapper.toUserDto(user);
     }
 
     public List<UserDto> getAllUsers() {
         log.info("Получение всех пользователей");
-        return userRepository.getAllUsers().stream()
+        return userRepository.findAll().stream()
                 .map(userMapper::toUserDto)
                 .collect(Collectors.toList());
     }
@@ -41,28 +44,28 @@ public class UserService {
     }
 
     private User getUser(Long id) {
-        return userRepository.getUserById(id)
+        return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
+    @Transactional
     public UserDto updateUser(Long id, @Valid UpdateUserDto userDto) {
         log.info("Обновление пользователя с id: {}, данные: {}", id, userDto);
 
         User existingUser = getUser(id);
-
         if (userDto.getName() != null && !userDto.getName().isBlank()) {
             existingUser.setName(userDto.getName());
         }
         if (userDto.getEmail() != null && !userDto.getEmail().isBlank()) {
             existingUser.setEmail(userDto.getEmail());
         }
-        User updatedUser = userRepository.updateUser(existingUser);
+        User updatedUser = userRepository.save(existingUser);
         return userMapper.toUserDto(updatedUser);
     }
 
+    @Transactional
     public void deleteUser(Long id) {
         log.info("Удаление пользователя по id: {}", id);
-        getUser(id);
-        userRepository.deleteUser(id);
+        userRepository.deleteById(id);
     }
 }

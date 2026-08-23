@@ -32,6 +32,13 @@ public class ErrorHandler {
         return new ErrorResponse("Ошибка валидации данных: " + e.getBindingResult().getFieldError().getDefaultMessage());
     }
 
+    @ExceptionHandler(NotAvailableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleNotAvailableException(final NotAvailableException e) {
+        log.warn("400 Bad Request: {}", e.getMessage());
+        return new ErrorResponse("Ошибка доступа к данным: " + e.getMessage());
+    }
+
     @ExceptionHandler(Throwable.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleThrowable(final Throwable e) {
