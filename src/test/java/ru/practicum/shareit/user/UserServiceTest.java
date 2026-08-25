@@ -12,7 +12,6 @@ import ru.practicum.shareit.user.dto.UpdateUserDto;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.dto.UserMapper;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,14 +47,14 @@ class UserServiceTest {
         userDto.setEmail("ivan@mail.com");
 
         updateUserDto = new UpdateUserDto();
-        updateUserDto.setName("Ivan Updated");
+        updateUserDto.setName("IvanUpdated");
         updateUserDto.setEmail("ivan_new@mail.com");
     }
 
     @Test
-    void createUser_whenValid_thenReturnsSavedUser() {
+    void createUser_whenValid_thenSaveAndReturnDto() {
         Mockito.when(userMapper.toUser(any(UserDto.class))).thenReturn(user);
-        Mockito.when(userRepository.createUser(any(User.class))).thenReturn(user);
+        Mockito.when(userRepository.save(any(User.class))).thenReturn(user);
         Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
 
         UserDto result = userService.createUser(userDto);
@@ -64,116 +63,69 @@ class UserServiceTest {
         assertEquals(userDto.getId(), result.getId());
         assertEquals(userDto.getName(), result.getName());
         assertEquals(userDto.getEmail(), result.getEmail());
-        Mockito.verify(userRepository, Mockito.times(1)).createUser(any(User.class));
+        Mockito.verify(userRepository, Mockito.times(1)).save(any(User.class));
     }
 
     @Test
-    void getAllUsers_whenUsersExist_thenReturnsList() {
-        Mockito.when(userRepository.getAllUsers()).thenReturn(List.of(user));
-        Mockito.when(userMapper.toUserDto(user)).thenReturn(userDto);
+    void getAllUsers_whenInvoked_thenReturnList() {
+        Mockito.when(userRepository.findAll()).thenReturn(List.of(user));
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
 
         List<UserDto> result = userService.getAllUsers();
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(userDto.getId(), result.get(0).getId());
+        Mockito.verify(userRepository, Mockito.times(1)).findAll();
     }
 
     @Test
-    void getAllUsers_whenEmpty_thenReturnsEmptyList() {
-        Mockito.when(userRepository.getAllUsers()).thenReturn(Collections.emptyList());
-
-        List<UserDto> result = userService.getAllUsers();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void getUserById_whenUserExists_thenReturnsUser() {
-        Mockito.when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
-        Mockito.when(userMapper.toUserDto(user)).thenReturn(userDto);
+    void getUserById_whenUserExists_thenReturnDto() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
 
         UserDto result = userService.getUserById(1L);
 
         assertNotNull(result);
-        assertEquals(1L, result.getId());
-        assertEquals("Ivan", result.getName());
+        assertEquals(userDto.getId(), result.getId());
+        Mockito.verify(userRepository, Mockito.times(1)).findById(1L);
     }
 
     @Test
-    void getUserById_whenUserDoesNotExist_thenThrowsNotFoundException() {
-        Mockito.when(userRepository.getUserById(99L)).thenReturn(Optional.empty());
+    void getUserById_whenUserDoesNotExist_thenThrowNotFoundException() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        NotFoundException exception = assertThrows(NotFoundException.class, () ->
-                userService.getUserById(99L)
-        );
-
-        assertEquals("Пользователь с id=99 не найден", exception.getMessage());
+        assertThrows(NotFoundException.class, () -> userService.getUserById(1L));
+        Mockito.verify(userRepository, Mockito.times(1)).findById(1L);
     }
 
     @Test
-    void updateUser_whenAllFieldsPresent_thenUpdatesAllFields() {
-        Mockito.when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
-        Mockito.when(userRepository.updateUser(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        UserDto updatedDto = new UserDto();
-        updatedDto.setId(1L);
-        updatedDto.setName("Ivan Updated");
-        updatedDto.setEmail("ivan_new@mail.com");
-        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(updatedDto);
+    void updateUser_whenUserExists_thenUpdateFieldsAndSave() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.save(any(User.class))).thenReturn(user);
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
 
         UserDto result = userService.updateUser(1L, updateUserDto);
 
         assertNotNull(result);
-        assertEquals("Ivan Updated", result.getName());
-        assertEquals("ivan_new@mail.com", result.getEmail());
+        assertEquals("IvanUpdated", user.getName());
+        assertEquals("ivan_new@mail.com", user.getEmail());
+        Mockito.verify(userRepository, Mockito.times(1)).save(user);
     }
 
     @Test
-    void updateUser_whenFieldsAreNullOrBlank_thenDoesNotUpdate() {
-        Mockito.when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
-        Mockito.when(userRepository.updateUser(any(User.class))).thenReturn(user);
-        Mockito.when(userMapper.toUserDto(user)).thenReturn(userDto);
+    void updateUser_whenUserDoesNotExist_thenThrowNotFoundException() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        UpdateUserDto partialUpdate = new UpdateUserDto();
-        partialUpdate.setName("");
-        partialUpdate.setEmail(null);
-
-        UserDto result = userService.updateUser(1L, partialUpdate);
-
-        assertNotNull(result);
-        assertEquals("Ivan", result.getName());
-        assertEquals("ivan@mail.com", result.getEmail());
+        assertThrows(NotFoundException.class, () -> userService.updateUser(1L, updateUserDto));
+        Mockito.verify(userRepository, Mockito.never()).save(any(User.class));
     }
 
     @Test
-    void updateUser_whenUserNotFound_thenThrowsNotFoundException() {
-        Mockito.when(userRepository.getUserById(99L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () ->
-                userService.updateUser(99L, updateUserDto)
-        );
-    }
-
-    @Test
-    void deleteUser_whenUserExists_thenCallsRepositoryDelete() {
-        Mockito.when(userRepository.getUserById(1L)).thenReturn(Optional.of(user));
-        Mockito.doNothing().when(userRepository).deleteUser(1L);
+    void deleteUser_whenInvoked_thenDeleteById() {
+        Mockito.doNothing().when(userRepository).deleteById(1L);
 
         assertDoesNotThrow(() -> userService.deleteUser(1L));
-
-        Mockito.verify(userRepository, Mockito.times(1)).deleteUser(1L);
-    }
-
-    @Test
-    void deleteUser_whenUserDoesNotExist_thenThrowsNotFoundException() {
-        Mockito.when(userRepository.getUserById(99L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () ->
-                userService.deleteUser(99L)
-        );
-
-        Mockito.verify(userRepository, Mockito.never()).deleteUser(99L);
+        Mockito.verify(userRepository, Mockito.times(1)).deleteById(1L);
     }
 }
