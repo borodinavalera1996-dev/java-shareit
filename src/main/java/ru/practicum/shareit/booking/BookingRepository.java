@@ -32,4 +32,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findFirstByItemIdAndStatusAndStartLessThanEqualOrderByStartDesc(Long itemId, Booking.BookingStatus status, LocalDateTime now);
 
     Optional<Booking> findFirstByItemIdAndStatusAndStartAfterOrderByStartAsc(Long itemId, Booking.BookingStatus status, LocalDateTime now);
+
+    List<Booking> findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(List<Long> itemIds, Booking.BookingStatus status, LocalDateTime now);
+
+    List<Booking> findAllByItemIdInAndStatusAndStartAfterOrderByStartAsc(List<Long> itemIds, Booking.BookingStatus status, LocalDateTime now);
 }

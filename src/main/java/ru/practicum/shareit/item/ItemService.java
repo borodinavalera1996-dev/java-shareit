@@ -69,12 +69,19 @@ public class ItemService {
         log.info("Получение вещи по id: {}", id);
         Item item = getItem(id);
         ItemDto itemDto;
+        LocalDateTime now = LocalDateTime.now();
         if (item.getOwner().getId().equals(userId)) {
             List<CommentDto> commentDtos = commentRepository.findAllByItemId(item.getId())
                     .stream()
                     .map(commentMapper::toCommentDto)
                     .collect(Collectors.toList());
-            itemDto = fillItemDto(item, commentDtos, LocalDateTime.now());
+            Booking lastBooking = bookingRepository
+                    .findFirstByItemIdAndStatusAndStartLessThanEqualOrderByStartDesc(item.getId(), Booking.BookingStatus.APPROVED, now)
+                    .orElse(null);
+            Booking nextBooking = bookingRepository
+                    .findFirstByItemIdAndStatusAndStartAfterOrderByStartAsc(item.getId(), Booking.BookingStatus.APPROVED, now)
+                    .orElse(null);
+            itemDto = itemMapper.toItemDto(item, commentDtos, lastBooking, nextBooking);
         } else {
             List<CommentDto> commentDtos = commentRepository.findAllByItemId(item.getId())
                     .stream()
@@ -107,9 +114,28 @@ public class ItemService {
                 .map(commentMapper::toCommentDto)
                 .collect(Collectors.groupingBy(CommentDto::getItemId));
 
+        Map<Long, Booking> lastBookingsMap  = bookingRepository
+                .findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(itemIds, Booking.BookingStatus.APPROVED, now)
+                .stream()
+                .collect(Collectors.toMap(
+                        o -> o.getItem().getId(),
+                        b -> b,
+                        (existing, replacement) -> existing
+                ));
+
+        Map<Long, Booking> nextBookingsMap = bookingRepository
+                .findAllByItemIdInAndStatusAndStartAfterOrderByStartAsc(itemIds, Booking.BookingStatus.APPROVED, now)
+                .stream()
+                .collect(Collectors.toMap(
+                        o -> o.getItem().getId(),
+                        b -> b,
+                        (existing, replacement) -> existing
+                ));
+
         for (Item item : itemRepository.findAllByOwner_Id(userId)) {
             if (item.getOwner().getId().equals(userId)) {
-                result.add(fillItemDto(item, null, now));
+                result.add(itemMapper.toItemDto(item, commentsMap.get(item.getId()),
+                        lastBookingsMap.get(item.getId()), nextBookingsMap.get(item.getId())));
             } else {
                 result.add(itemMapper.toItemDto(item, commentsMap.get(item.getId())));
             }
@@ -117,22 +143,7 @@ public class ItemService {
         return result;
     }
 
-    private ItemDto fillItemDto(Item item, List<CommentDto> commentDtos, LocalDateTime now) {
-        ItemDto itemDto;
-        Booking lastBooking = bookingRepository
-                .findFirstByItemIdAndStatusAndStartLessThanEqualOrderByStartDesc(item.getId(), Booking.BookingStatus.APPROVED, now)
-                .orElse(null);
-        Booking nextBooking = bookingRepository
-                .findFirstByItemIdAndStatusAndStartAfterOrderByStartAsc(item.getId(), Booking.BookingStatus.APPROVED, now)
-                .orElse(null);
-        itemDto = itemMapper.toItemDto(item, commentDtos, lastBooking, nextBooking);
-        return itemDto;
-    }
-
     public CommentDto addComment(Long userId, Long itemId, CommentDto commentDto) {
-        if (commentDto.getText() == null || commentDto.getText().isBlank()) {
-            throw new IllegalArgumentException("Текст комментария не может быть пустым");
-        }
         User user = getUser(userId);
         Item item = getItem(itemId);
         boolean hasBooked = bookingRepository.existsByBookerIdAndItemIdAndStatusAndStartBefore(

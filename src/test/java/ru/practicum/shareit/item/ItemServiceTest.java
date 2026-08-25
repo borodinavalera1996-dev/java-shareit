@@ -184,14 +184,19 @@ class ItemServiceTest {
 
     @Test
     void getAllItemByUser_whenInvoked_thenOptimizeCommentsAndFillDto() {
+        item.setId(1L);
+
+        lastBooking.setItem(item);
+        nextBooking.setItem(item);
+
         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
         Mockito.when(itemRepository.findAllByOwner_Id(1L)).thenReturn(List.of(item));
         Mockito.when(commentRepository.findAllByItemIdIn(anyList())).thenReturn(List.of(comment));
         Mockito.when(commentMapper.toCommentDto(any(Comment.class))).thenReturn(commentDto);
-        Mockito.when(bookingRepository.findFirstByItemIdAndStatusAndStartLessThanEqualOrderByStartDesc(anyLong(), any(), any()))
-                .thenReturn(Optional.of(lastBooking));
-        Mockito.when(bookingRepository.findFirstByItemIdAndStatusAndStartAfterOrderByStartAsc(anyLong(), any(), any()))
-                .thenReturn(Optional.of(nextBooking));
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(anyList(), any(), any()))
+                .thenReturn(List.of(lastBooking));
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartAfterOrderByStartAsc(anyList(), any(), any()))
+                .thenReturn(List.of(nextBooking));
         Mockito.when(itemMapper.toItemDto(eq(item), any(), eq(lastBooking), eq(nextBooking))).thenReturn(itemDto);
 
         List<ItemDto> result = itemService.getAllItemByUser(1L);

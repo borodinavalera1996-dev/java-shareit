@@ -11,6 +11,7 @@ import ru.practicum.shareit.booking.dto.BookingStatus;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotAvailableException;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.User;
@@ -31,13 +32,13 @@ public class BookingService {
     private final ItemRepository itemRepository;
 
     public BookingDto create(@Valid BookingInputDto bookingDto, Long userId) {
+        if (!bookingDto.getStart().isBefore(bookingDto.getEnd()))
+            throw new ValidationException("Дата начала бронирования должна быть раньше чем дата конца бронирования");
         User user = getUser(userId);
         Item item = getItem(bookingDto.getItemId());
         if (!item.getStatus())
             throw new NotAvailableException("Предмет не доступен");
         Booking booking = bookingMapper.toBooking(bookingDto, item, user);
-        booking.setStatus(Booking.BookingStatus.WAITING);
-        booking.setBooker(user);
         Booking saved = bookingRepository.save(booking);
         return bookingMapper.toBookingDto(saved);
     }
@@ -51,6 +52,9 @@ public class BookingService {
         Booking booking = getBooking(bookingId);
         if (!booking.getItem().getOwner().getId().equals(userId)) {
             throw new ConflictException("Пользователь с id " + userId + " не является владельцем вещи");
+        }
+        if (!booking.getStatus().equals(Booking.BookingStatus.WAITING)) {
+            throw new ConflictException("Статус бронирования не соответствует ожидаемому (WAITING)");
         }
         if (approved)
             booking.setStatus(Booking.BookingStatus.APPROVED);
@@ -85,7 +89,6 @@ public class BookingService {
                     bookingRepository.findAllByBookerIdAndStatusOrderByStartDesc(userId, Booking.BookingStatus.WAITING);
             case BookingStatus.REJECTED ->
                     bookingRepository.findAllByBookerIdAndStatusOrderByStartDesc(userId, Booking.BookingStatus.REJECTED);
-            default -> List.of();
         };
 
         return bookings.stream()
@@ -110,7 +113,6 @@ public class BookingService {
                     bookingRepository.findAllByItemOwnerIdAndStatusOrderByStartDesc(userId, Booking.BookingStatus.WAITING);
             case BookingStatus.REJECTED ->
                     bookingRepository.findAllByItemOwnerIdAndStatusOrderByStartDesc(userId, Booking.BookingStatus.REJECTED);
-            default -> List.of();
         };
 
         return bookings.stream()
