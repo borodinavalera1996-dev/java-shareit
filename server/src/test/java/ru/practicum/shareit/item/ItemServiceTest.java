@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.practicum.shareit.booking.Booking;
 import ru.practicum.shareit.booking.BookingRepository;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.dto.*;
@@ -130,6 +131,71 @@ class ItemServiceTest {
     }
 
     @Test
+    void updateItem_whenAllFieldsValid_thenUpdateAllFields() {
+        UpdateItemDto updateDto = new UpdateItemDto();
+        updateDto.setName("Новое имя вещи");
+        updateDto.setDescription("Новое описание вещи");
+        updateDto.setAvailable(false);
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        Mockito.when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        Mockito.when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(itemMapper.toItemDto(any(Item.class))).thenReturn(itemDto);
+
+        itemService.updateItem(updateDto, 1L, 1L);
+
+        assertEquals("Новое имя вещи", item.getName());
+        assertEquals("Новое описание вещи", item.getDescription());
+        assertFalse(item.getStatus());
+    }
+
+    @Test
+    void updateItem_whenAllFieldsAreNull_thenNoFieldsUpdated() {
+        UpdateItemDto updateDto = new UpdateItemDto();
+        updateDto.setName(null);
+        updateDto.setDescription(null);
+        updateDto.setAvailable(null);
+
+        String originalName = item.getName();
+        String originalDesc = item.getDescription();
+        boolean originalStatus = item.getStatus();
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        Mockito.when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        Mockito.when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(itemMapper.toItemDto(any(Item.class))).thenReturn(itemDto);
+
+        itemService.updateItem(updateDto, 1L, 1L);
+
+        assertEquals(originalName, item.getName());
+        assertEquals(originalDesc, item.getDescription());
+        assertEquals(originalStatus, item.getStatus());
+    }
+
+    @Test
+    void updateItem_whenFieldsAreBlank_thenNoFieldsUpdated() {
+        UpdateItemDto updateDto = new UpdateItemDto();
+        updateDto.setName("   ");
+        updateDto.setDescription("");
+        updateDto.setAvailable(true);
+
+        String originalName = item.getName();
+        String originalDesc = item.getDescription();
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        Mockito.when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        Mockito.when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(itemMapper.toItemDto(any(Item.class))).thenReturn(itemDto);
+
+        itemService.updateItem(updateDto, 1L, 1L);
+
+        assertEquals(originalName, item.getName());
+        assertEquals(originalDesc, item.getDescription());
+        assertTrue(item.getStatus());
+    }
+
+
+    @Test
     void getItemById_whenUserIsOwner_thenReturnWithBookings() {
         Mockito.when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         Mockito.when(commentRepository.findAllByItemId(1L)).thenReturn(Collections.emptyList());
@@ -206,4 +272,67 @@ class ItemServiceTest {
         assertEquals(commentDto.getText(), result.getText());
         Mockito.verify(commentRepository, Mockito.times(1)).save(any(Comment.class));
     }
+
+    @Test
+    void getAllItemByUser_whenInvoked_thenReturnItemsWithBookingsAndComments() {
+        Long userId = 1L;
+        Mockito.when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(owner));
+
+        Mockito.when(itemRepository.findAllByOwner_Id(eq(userId), any()))
+                .thenReturn(List.of(item));
+
+        CommentDto commentDto = new CommentDto();
+        commentDto.setItemId(item.getId());
+        commentDto.setText("Тестовый комментарий");
+        Mockito.when(commentRepository.findAllByItemIdIn(anyList())).thenReturn(List.of(new Comment()));
+        Mockito.when(commentMapper.toCommentDto(any())).thenReturn(commentDto);
+
+        Booking lastBooking = new Booking();
+        lastBooking.setItem(item);
+        Booking nextBooking = new Booking();
+        nextBooking.setItem(item);
+
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(anyList(), any(), any()))
+                .thenReturn(List.of(lastBooking));
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartAfterOrderByStartAsc(anyList(), any(), any()))
+                .thenReturn(List.of(nextBooking));
+
+        Mockito.when(itemMapper.toItemDto(eq(item), anyList(), eq(lastBooking), eq(nextBooking)))
+                .thenReturn(itemDto);
+
+        List<ItemDto> result = itemService.getAllItemByUser(userId, 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(itemRepository, Mockito.times(1)).findAllByOwner_Id(eq(userId), any());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(anyList(), any(), any());
+    }
+
+    @Test
+    void getAllItemByUser_whenItemHasDifferentOwner_thenExecuteElseBranch() {
+        Long userId = 1L;
+        Mockito.when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(owner));
+
+        User alternativeOwner = new User();
+        alternativeOwner.setId(99L);
+        Item foreignItem = new Item();
+        foreignItem.setId(2L);
+        foreignItem.setOwner(alternativeOwner);
+
+        Mockito.when(itemRepository.findAllByOwner_Id(eq(userId), any())).thenReturn(List.of(foreignItem));
+        Mockito.when(commentRepository.findAllByItemIdIn(anyList())).thenReturn(Collections.emptyList());
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartLessThanEqualOrderByStartDesc(anyList(), any(), any()))
+                .thenReturn(Collections.emptyList());
+        Mockito.when(bookingRepository.findAllByItemIdInAndStatusAndStartAfterOrderByStartAsc(anyList(), any(), any()))
+                .thenReturn(Collections.emptyList());
+
+        Mockito.when(itemMapper.toItemDto(eq(foreignItem), any())).thenReturn(itemDto);
+
+        List<ItemDto> result = itemService.getAllItemByUser(userId, 0, 10);
+
+        assertNotNull(result);
+        Mockito.verify(itemMapper, Mockito.times(1)).toItemDto(eq(foreignItem), any());
+    }
+
 }

@@ -13,6 +13,7 @@ import ru.practicum.shareit.booking.dto.BookingInputDto;
 import ru.practicum.shareit.booking.dto.BookingMapper;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotAvailableException;
+import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
@@ -146,11 +147,62 @@ class BookingServiceTest {
     }
 
     @Test
+    void approved_whenUserNotFoundInTryCatch_thenThrowNotAvailableException() {
+        Mockito.when(userRepository.findById(99L))
+                .thenThrow(new NotFoundException("Пользователь с id 99 не найден"));
+
+        NotAvailableException exception = assertThrows(NotAvailableException.class, () ->
+                bookingService.approved(1L, 99L, true)
+        );
+
+        assertEquals("Пользователь с id 99 не найден", exception.getMessage());
+        Mockito.verify(bookingRepository, Mockito.never()).save(any());
+    }
+
+    @Test
+    void approved_whenApprovedIsFalse_thenSetRejectedAndSave() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        Mockito.when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        bookingService.approved(1L, 2L, false);
+
+        assertEquals(Booking.BookingStatus.REJECTED, booking.getStatus());
+        Mockito.verify(bookingRepository, Mockito.times(1)).save(booking);
+    }
+
+
+    @Test
     void get_whenUserNotRelated_thenThrowConflictException() {
         Mockito.when(userRepository.findById(3L)).thenReturn(Optional.of(new User()));
         Mockito.when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
         assertThrows(ConflictException.class, () -> bookingService.get(1L, 3L));
+    }
+
+    @Test
+    void get_whenUserIsBooker_thenReturnBookingDto() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(booking)).thenReturn(bookingDto);
+
+        BookingDto result = bookingService.get(1L, 1L);
+
+        assertNotNull(result);
+        Mockito.verify(bookingMapper, Mockito.times(1)).toBookingDto(booking);
+    }
+
+    @Test
+    void get_whenUserIsItemOwner_thenReturnBookingDto() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(booking)).thenReturn(bookingDto);
+
+        BookingDto result = bookingService.get(1L, 2L);
+
+        assertNotNull(result);
+        Mockito.verify(bookingMapper, Mockito.times(1)).toBookingDto(booking);
     }
 
     @Test
@@ -177,6 +229,81 @@ class BookingServiceTest {
     }
 
     @Test
+    void getAllByUserIdSortedByDate_withStateCurrent_thenReturnList() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findAllByBookerIdAndStartBeforeAndEndAfter(eq(1L), any(), any(), any()))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByUserIdSortedByDate(1L, "CURRENT", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByBookerIdAndStartBeforeAndEndAfter(eq(1L), any(), any(), any());
+    }
+
+    @Test
+    void getAllByUserIdSortedByDate_withStatePast_thenReturnList() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findAllByBookerIdAndEndBefore(eq(1L), any(), any()))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByUserIdSortedByDate(1L, "PAST", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByBookerIdAndEndBefore(eq(1L), any(), any());
+    }
+
+    @Test
+    void getAllByUserIdSortedByDate_withStateFuture_thenReturnList() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findAllByBookerIdAndStartAfter(eq(1L), any(), any()))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByUserIdSortedByDate(1L, "FUTURE", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByBookerIdAndStartAfter(eq(1L), any(), any());
+    }
+
+    @Test
+    void getAllByUserIdSortedByDate_withStateWaiting_thenReturnList() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findAllByBookerIdAndStatus(eq(1L), eq(Booking.BookingStatus.WAITING), any()))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByUserIdSortedByDate(1L, "WAITING", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByBookerIdAndStatus(eq(1L), eq(Booking.BookingStatus.WAITING), any());
+    }
+
+    @Test
+    void getAllByUserIdSortedByDate_withStateRejected_thenReturnList() {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(booker));
+        Mockito.when(bookingRepository.findAllByBookerIdAndStatus(eq(1L), eq(Booking.BookingStatus.REJECTED), any()))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByUserIdSortedByDate(1L, "REJECTED", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByBookerIdAndStatus(eq(1L), eq(Booking.BookingStatus.REJECTED), any());
+    }
+
+    @Test
     void getAllByOwnerSortedByDate_withStateFuture_thenReturnList() {
         Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
         Mockito.when(bookingRepository.findAllByItemOwnerIdAndStartAfter(eq(2L), any(), any(Pageable.class)))
@@ -189,5 +316,79 @@ class BookingServiceTest {
         assertEquals(1, result.size());
         Mockito.verify(bookingRepository, Mockito.times(1))
                 .findAllByItemOwnerIdAndStartAfter(eq(2L), any(), any(Pageable.class));
+    }
+
+    @Test
+    void getAllByOwnerSortedByDate_withStateAll_thenReturnList() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findAllByItemOwnerId(eq(2L), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByOwnerSortedByDate(2L, "ALL", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1)).findAllByItemOwnerId(eq(2L), any(Pageable.class));
+    }
+
+    @Test
+    void getAllByOwnerSortedByDate_withStateCurrent_thenReturnList() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findAllByItemOwnerIdAndStartBeforeAndEndAfter(eq(2L), any(), any(), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByOwnerSortedByDate(2L, "CURRENT", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByItemOwnerIdAndStartBeforeAndEndAfter(eq(2L), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void getAllByOwnerSortedByDate_withStatePast_thenReturnList() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findAllByItemOwnerIdAndEndBefore(eq(2L), any(), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByOwnerSortedByDate(2L, "PAST", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByItemOwnerIdAndEndBefore(eq(2L), any(), any(Pageable.class));
+    }
+
+    @Test
+    void getAllByOwnerSortedByDate_withStateWaiting_thenReturnList() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findAllByItemOwnerIdAndStatus(eq(2L), eq(Booking.BookingStatus.WAITING), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByOwnerSortedByDate(2L, "WAITING", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByItemOwnerIdAndStatus(eq(2L), eq(Booking.BookingStatus.WAITING), any(Pageable.class));
+    }
+
+    @Test
+    void getAllByOwnerSortedByDate_withStateRejected_thenReturnList() {
+        Mockito.when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        Mockito.when(bookingRepository.findAllByItemOwnerIdAndStatus(eq(2L), eq(Booking.BookingStatus.REJECTED), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+        Mockito.when(bookingMapper.toBookingDto(any(Booking.class))).thenReturn(bookingDto);
+
+        List<BookingDto> result = bookingService.getAllByOwnerSortedByDate(2L, "REJECTED", 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        Mockito.verify(bookingRepository, Mockito.times(1))
+                .findAllByItemOwnerIdAndStatus(eq(2L), eq(Booking.BookingStatus.REJECTED), any(Pageable.class));
     }
 }

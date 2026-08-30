@@ -125,6 +125,54 @@ class UserServiceTest {
     }
 
     @Test
+    void updateUser_whenNameAndEmailAreValid_thenUpdateBothFields() {
+        UpdateUserDto updateUserDto = new UpdateUserDto();
+        updateUserDto.setName("Новое Имя");
+        updateUserDto.setEmail("new@mail.com");
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
+
+        userService.updateUser(1L, updateUserDto);
+
+        assertEquals("Новое Имя", user.getName());
+        assertEquals("new@mail.com", user.getEmail());
+    }
+
+    @Test
+    void updateUser_whenNameAndEmailAreNull_thenDoNotUpdateFields() {
+        UpdateUserDto updateUserDto = new UpdateUserDto();
+        updateUserDto.setName(null);
+        updateUserDto.setEmail(null);
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
+
+        userService.updateUser(1L, updateUserDto);
+
+        assertEquals("Ivan", user.getName());
+        assertEquals("ivan@mail.com", user.getEmail());
+    }
+
+    @Test
+    void updateUser_whenNameAndEmailAreBlank_thenDoNotUpdateFields() {
+        UpdateUserDto updateUserDto = new UpdateUserDto();
+        updateUserDto.setName("   ");
+        updateUserDto.setEmail("");
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(userMapper.toUserDto(any(User.class))).thenReturn(userDto);
+
+        userService.updateUser(1L, updateUserDto);
+
+        assertEquals("Ivan", user.getName());
+        assertEquals("ivan@mail.com", user.getEmail());
+    }
+
+    @Test
     void deleteUser_whenInvoked_thenDeleteById() {
         Mockito.doNothing().when(userRepository).deleteById(1L);
 
