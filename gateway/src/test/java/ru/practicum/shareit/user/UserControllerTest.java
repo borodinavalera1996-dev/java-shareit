@@ -30,7 +30,8 @@ class UserControllerTest {
     private ObjectMapper objectMapper;
 
     @org.springframework.boot.test.context.TestConfiguration
-    static class TestConfig {}
+    static class TestConfig {
+    }
 
     @MockBean
     private UserClient userClient;
