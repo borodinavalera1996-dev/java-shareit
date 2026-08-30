@@ -8,7 +8,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UpdateUserDto;
 import ru.practicum.shareit.user.dto.UserDto;
@@ -79,7 +78,7 @@ class UserServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(userDto.getId(), result.get(0).getId());
+        assertEquals(userDto.getId(), result.getFirst().getId());
         Mockito.verify(userRepository, Mockito.times(1)).findAll(PageRequest.of(0, 10));
     }
 
