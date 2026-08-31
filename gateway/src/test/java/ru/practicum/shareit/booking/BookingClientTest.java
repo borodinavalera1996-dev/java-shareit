@@ -17,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import ru.practicum.shareit.booking.dto.BookItemRequestDto;
 import ru.practicum.shareit.booking.dto.BookingState;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,6 +75,8 @@ class BookingClientTest {
 
     @Test
     void bookItem_whenInvoked_thenCallPostWithHeader() {
+        bookItemRequestDto.setStart(LocalDateTime.now().plusDays(1));
+        bookItemRequestDto.setEnd(LocalDateTime.now().plusDays(2));
         Mockito.when(restTemplate.exchange(eq(""), eq(HttpMethod.POST), any(HttpEntity.class), eq(Object.class)))
                 .thenReturn(expectedResponse);
 

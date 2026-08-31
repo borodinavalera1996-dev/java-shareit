@@ -10,6 +10,7 @@ import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.shareit.booking.dto.BookItemRequestDto;
 import ru.practicum.shareit.booking.dto.BookingState;
 import ru.practicum.shareit.client.BaseClient;
+import ru.practicum.shareit.exception.ValidationException;
 
 import java.util.Map;
 
@@ -38,6 +39,8 @@ public class BookingClient extends BaseClient {
 
 
     public ResponseEntity<Object> bookItem(long userId, BookItemRequestDto requestDto) {
+        if (!requestDto.getStart().isBefore(requestDto.getEnd()))
+            throw new ValidationException("Дата начала бронирования должна быть раньше чем дата конца бронирования");
         return post("", userId, requestDto);
     }
 

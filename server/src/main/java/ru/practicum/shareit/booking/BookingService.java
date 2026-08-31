@@ -12,7 +12,6 @@ import ru.practicum.shareit.booking.dto.BookingStatus;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotAvailableException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.User;
@@ -33,8 +32,6 @@ public class BookingService {
     private final ItemRepository itemRepository;
 
     public BookingDto create(BookingInputDto bookingDto, Long userId) {
-        if (!bookingDto.getStart().isBefore(bookingDto.getEnd()))
-            throw new ValidationException("Дата начала бронирования должна быть раньше чем дата конца бронирования");
         User user = getUser(userId);
         Item item = getItem(bookingDto.getItemId());
         if (!item.getStatus())
@@ -112,8 +109,7 @@ public class BookingService {
             case BookingStatus.CURRENT ->
                     bookingRepository.findAllByItemOwnerIdAndStartBeforeAndEndAfter(userId, now, now, request);
             case BookingStatus.PAST -> bookingRepository.findAllByItemOwnerIdAndEndBefore(userId, now, request);
-            case BookingStatus.FUTURE ->
-                    bookingRepository.findAllByItemOwnerIdAndStartAfter(userId, now, request);
+            case BookingStatus.FUTURE -> bookingRepository.findAllByItemOwnerIdAndStartAfter(userId, now, request);
             case BookingStatus.WAITING ->
                     bookingRepository.findAllByItemOwnerIdAndStatus(userId, Booking.BookingStatus.WAITING, request);
             case BookingStatus.REJECTED ->

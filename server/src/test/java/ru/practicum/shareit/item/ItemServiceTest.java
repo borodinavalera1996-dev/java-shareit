@@ -226,13 +226,6 @@ class ItemServiceTest {
     }
 
     @Test
-    void searchItems_whenTextBlank_thenReturnEmptyList() {
-        List<ItemDto> result = itemService.searchItems("   ", 0, 10);
-        assertTrue(result.isEmpty());
-        Mockito.verify(itemRepository, Mockito.never()).search(anyString(), any());
-    }
-
-    @Test
     void searchItems_whenTextValid_thenReturnMappedList() {
         Mockito.when(itemRepository.search(eq("дрель"), any())).thenReturn(List.of(item));
         Mockito.when(itemMapper.toItemDto(any(Item.class))).thenReturn(itemDto);

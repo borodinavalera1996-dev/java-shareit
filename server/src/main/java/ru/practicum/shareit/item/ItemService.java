@@ -17,7 +17,6 @@ import ru.practicum.shareit.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -100,9 +99,6 @@ public class ItemService {
 
     public List<ItemDto> searchItems(String text, Integer from, Integer size) {
         log.info("Поиск вещей по запросу: {}", text);
-        if (text == null || text.isBlank()) {
-            return Collections.emptyList();
-        }
         PageRequest request = PageRequest.of(from / size, size);
         return itemRepository.search(text, request).stream()
                 .map(itemMapper::toItemDto)

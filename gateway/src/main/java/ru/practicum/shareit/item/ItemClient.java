@@ -3,6 +3,7 @@ package ru.practicum.shareit.item;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.UpdateItemDto;
 
+import java.util.Collections;
 import java.util.Map;
 
 @Service
@@ -42,6 +44,9 @@ public class ItemClient extends BaseClient {
     }
 
     public ResponseEntity<Object> searchItems(String text, Integer from, Integer size) {
+        if (text == null || text.isBlank()) {
+            return new ResponseEntity<>(Collections.emptyList(), HttpStatusCode.valueOf(200));
+        }
         Map<String, Object> parameters = Map.of(
                 "test", text,
                 "from", from,

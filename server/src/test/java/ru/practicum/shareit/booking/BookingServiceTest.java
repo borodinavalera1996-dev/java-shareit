@@ -14,7 +14,6 @@ import ru.practicum.shareit.booking.dto.BookingMapper;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotAvailableException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.User;
@@ -27,6 +26,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class BookingServiceTest {
@@ -81,15 +81,6 @@ class BookingServiceTest {
 
         bookingDto = new BookingDto();
         bookingDto.setId(1L);
-    }
-
-    @Test
-    void create_whenDatesInvalid_thenThrowValidationException() {
-        bookingInputDto.setStart(LocalDateTime.now().plusDays(5));
-        bookingInputDto.setEnd(LocalDateTime.now().plusDays(2));
-
-        assertThrows(ValidationException.class, () -> bookingService.create(bookingInputDto, 1L));
-        Mockito.verify(bookingRepository, Mockito.never()).save(any());
     }
 
     @Test
@@ -156,7 +147,7 @@ class BookingServiceTest {
         );
 
         assertEquals("Пользователь с id 99 не найден", exception.getMessage());
-        Mockito.verify(bookingRepository, Mockito.never()).save(any());
+        Mockito.verify(bookingRepository, never()).save(any());
     }
 
     @Test
@@ -172,6 +163,16 @@ class BookingServiceTest {
         Mockito.verify(bookingRepository, Mockito.times(1)).save(booking);
     }
 
+    @Test
+    void approved_WhenUserNotFound_ShouldThrowNotAvailableException() {
+        Long bookingId = 10L;
+        Long userId = 99L;
+        assertThrows(NotAvailableException.class, () -> {
+            bookingService.approved(bookingId, userId, true);
+        });
+
+        Mockito.verify(bookingRepository, never()).save(any());
+    }
 
     @Test
     void get_whenUserNotRelated_thenThrowConflictException() {

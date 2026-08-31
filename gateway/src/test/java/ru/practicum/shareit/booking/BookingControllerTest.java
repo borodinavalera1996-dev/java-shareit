@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.shareit.booking.dto.BookItemRequestDto;
 import ru.practicum.shareit.booking.dto.BookingState;
 
+import java.time.LocalDateTime;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -83,6 +85,9 @@ class BookingControllerTest {
 
     @Test
     void bookItem_whenValid_thenStatusOk() throws Exception {
+        bookItemRequestDto.setStart(LocalDateTime.now().plusDays(1));
+        bookItemRequestDto.setEnd(LocalDateTime.now().plusDays(2));
+
         Mockito.when(bookingClient.bookItem(eq(1L), any(BookItemRequestDto.class)))
                 .thenReturn(new ResponseEntity<>(bookItemRequestDto, HttpStatus.CREATED));
 
